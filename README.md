@@ -1,0 +1,2 @@
+# AndroidScada
+qt&amp;android
