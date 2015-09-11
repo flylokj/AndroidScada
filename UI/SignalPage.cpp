@@ -11,7 +11,7 @@ SignalPage::SignalPage(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::SignalPage)
 {
-    double dXfactor = (double)g_pResManModule->m_pProjectParm->m_nWidth / 800;//因为在UI文件中布局时候是假设面板大小为800*600;
+    const double dXfactor = g_pResManModule->getdXfactor();
     ui->setupUi(this);
 
     ui->tableWidget->setRowCount(4);

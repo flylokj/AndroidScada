@@ -541,7 +541,7 @@ TutorPage::TutorPage(QWidget *parent) :
     m_nTutorMode(-1),
     ui(new Ui::TutorPage)
 {
-    double dXfactor = (double)g_pResManModule->m_pProjectParm->m_nWidth / 800;//因为在UI文件中布局时候是假设面板大小为800*600;
+    double dXfactor = g_pResManModule->getdXfactor();
     ui->setupUi(this);
 
     //设置视图模型
@@ -610,8 +610,8 @@ void TutorPage::on_pushButtonEdit_clicked()
         return;
     TutorModel *pMod = static_cast<TutorModel *>(ui->tableView->model());
     TutorEditDlg dlg(pMod->getRawTutorRecord(row), this->parentWidget());//建立编辑对话框;
-    double dXfactor = (double)g_pResManModule->m_pProjectParm->m_nWidth / 800;//因为在UI文件中布局时候是假设面板大小为800*600;
-    double dYfactor = (double)g_pResManModule->m_pProjectParm->m_nHeight / 600;//因为在UI文件中布局时候是假设面板大小为800*600;
+    const double dXfactor = g_pResManModule->getdXfactor();
+    const double dYfactor = g_pResManModule->getdYfactor();
     dlg.resize(dlg.width()*dXfactor, dlg.height()*dYfactor);
     dlg.exec();
 }

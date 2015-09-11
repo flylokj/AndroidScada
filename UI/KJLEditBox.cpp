@@ -35,16 +35,11 @@ KJLEditBox::KJLEditBox(QWidget *parent/*=0*/, char *data/*=0*/):
             if(!m_pSimulate)
                 return;
             m_pSimulate->getFmt(&m_nMax, &m_nMin, &m_nDecimal, m_strMax, m_strMin);
-//            int temp = qPow(10, m_nDecimal);
-//            QDoubleValidator *pVal = new QDoubleValidator((double)m_nMax/temp , (double)m_nMin/temp, m_nDecimal, this);
-//            pVal->setNotation(QDoubleValidator::StandardNotation);
-//            m_pValidator = pVal;
-//            setValidator(m_pValidator);//貌似对m_pValidator的操作有内存错误，在析构函数中出现问题;
             //绑定变量数据更新信号槽
             connect(m_pSimulate, SIGNAL(updateData(QString,SimulateMan*,QObject*)), this, SLOT(onUpdateData(QString,SimulateMan*,QObject*)));
             m_pSimulate->trigle();
 
-            m_pSimulate->addToMonitorList();
+            m_pSimulate->addToMonitorList();//加入监控列表;
 
         }
 
@@ -133,8 +128,8 @@ void KJLEditBox::keyPressEvent(QKeyEvent *event)
 void KJLEditBox::mouseReleaseEvent(QMouseEvent *e)
 {
     KeyBoardDialog dlg(gMainWindow);
-    double dXfactor = (double)g_pResManModule->m_pProjectParm->m_nWidth / 800;//因为在UI文件中布局时候是假设面板大小为800*600;
-    double dYfactor = (double)g_pResManModule->m_pProjectParm->m_nHeight / 600;//因为在UI文件中布局时候是假设面板大小为800*600;
+    const double dXfactor = g_pResManModule->getdXfactor();
+    const double dYfactor = g_pResManModule->getdYfactor();
     dlg.resize(dlg.width()*dXfactor, dlg.height()*dYfactor);
     if(dlg.exec() == QDialog::Accepted)
     {

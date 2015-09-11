@@ -92,3 +92,7 @@ proguard/
 
 # Android Studio captures folder
 captures/
+
+#Document
+doc/
+Doxyfile

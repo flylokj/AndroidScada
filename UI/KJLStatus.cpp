@@ -83,6 +83,7 @@ void KJLStatus::setData(void *data, bool byHand)
          {
              connect(m_pSimulate, SIGNAL(updateData(int,SimulateMan*,QObject*)), this, SLOT(onUpdateData(int,SimulateMan*,QObject*)));
              m_pSimulate->trigle();
+             m_pSimulate->addToMonitorList();//加入监控列表;
          }
 
     }
@@ -96,6 +97,11 @@ void KJLStatus::setData(void *data, bool byHand)
     }else
         setAlignment(Qt::AlignCenter);
 
+}
+
+void KJLStatus::closeEvent(QCloseEvent *event)
+{
+    m_pSimulate->delFromMonitorList();
 }
 
 void KJLStatus::onUpdateTime(const QString time)
@@ -114,7 +120,7 @@ void KJLStatus::onUpdateData(int data, SimulateMan *pVar, QObject *who)
         int nMax = *p;
         if(nMax == 0)
             return;
-        int nOff = (data) % nMax;
+        uint nOff = uint(data) % nMax;
         if(m_pPriData->m_nType == TextStat)
         {
             QString *pStr = g_pResManModule->getString(p[nOff+1]);
@@ -128,9 +134,9 @@ void KJLStatus::onUpdateData(int data, SimulateMan *pVar, QObject *who)
         {
             setAttribute(Qt::WA_TranslucentBackground);
             QPixmap *pBkPixmap= g_pResManModule->getPixmap(p[nOff+1]);
-            //qDebug()<<p[nOff];
             if(pBkPixmap)
                 setPixmap( *pBkPixmap );
+
         }
     }
     else//m_pData->nDynamicID动态显示ID;

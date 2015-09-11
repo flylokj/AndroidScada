@@ -7,66 +7,104 @@
 #include <QTextStream>
 
 
-
+//!构造函数
+/*!
+ * 切换默认语言;
+ * 加载16进制数据(建立画面列表和任务列表);
+ * 加载系统配置;
+ * 加载图片;
+ * 加载字符串;
+ * 加载警告信息;
+ */
 ResManager::ResManager(QObject *parent)
     : QObject(parent)
     , m_nLanguageSel(0)
     , m_nMaxLanguage(0)
+    , pHex(0)
+    , m_pTranslator(new QTranslator())
 {
-    pHex = NULL;
+    g_pResManModule = this;
+    m_pTranslator->load(LAGNUAGEFILE);//加载默认语言包;
+    loadHex();
+    loadLanguageConfig();
+    loadImg();
+    loadStr();
+    loadWarnText();
 
-	m_pTranslator = new QTranslator();
-    m_pTranslator->load(LAGNUAGEFILE);
+    m_dXfactor = (double)g_pResManModule->m_pProjectParm->m_nWidth / 800;//因为在UI文件中布局时候是假设面板大小为800*600;
+    m_dYfactor = (double)g_pResManModule->m_pProjectParm->m_nHeight / 600;//因为在UI文件中布局时候是假设面板大小为800*600;
 }
 
+//!析构函数
+/*!
+ * 释放m_pTranslator
+ * 释放16进制数据缓冲区;
+ * 清除子页面列表;
+ * 清除任务列表;
+ * 释放图片;
+ * 释放字符串;
+ * 释放警告信息;
+ */
 ResManager::~ResManager()
 {
 	qDebug()<<"~ResManager()";
+    m_pTranslator->deleteLater();
+
     if(pHex)
         delete pHex;
     pHex = NULL;
 
     m_pageStruct.pSubPageVector.clear();
-        
 	m_pTaskVector.clear();
-
-    //释放图片资源;
     releaseImgRes();
-    //释放字符串资源;
     releaseStrRes();
-    //释放警告信息字符串;
     releaseWarnRes();
 
-	m_pTranslator->deleteLater();
 }
 
-//加载Hex文件;
+//!加载16进制数据文件,Hex文件结构如下：
+/*!
+ *   |变量数目|(4)\n
+ *   |变量区域大小|(4)\n
+ *   |变量|(不定)\n
+ *   |工程参数|(ProjectParm结构大小)\n
+ *   |面板参数|(PanelParm结构大小)\n
+ *   |一级页面数目|(4)\n
+ *   |页面0头|(PageHead结构大小)\n
+ *   |页面0控件列表参数|(不定)\n
+ *   |页面1头|(PageHead结构大小)\n
+ *   |页面1控件列表参数|(不定)\n
+ *   ....\n
+ *   |页面n头|(PageHead结构大小)\n
+ *   |页面n控件列表参数|(不定)\n
+ *   |一级页面0对应的子画面列表|\n
+ *   |一级页面1对应的子画面列表|\n
+ *   ...\n
+ *   |一级页面n对应的自画面列表|\n
+ *   |任务个数|(4)\n
+ *   |任务0描述|\n
+ *   |任务1描述|\n
+ *   ....\n
+ *   |任务n描述|\n
+ */
 void ResManager::loadHex()
 {
-    //[0]变量参数;
-    //[1]工程参数;
-    //[2]面板参数;
-    //[3]页面参数;
     char *pTemp;
     QFile file(HEXFILE);
-    if (!file.open(QIODevice::ReadOnly))
+    if(!file.open(QIODevice::ReadOnly))
         return;
 
     qint64 size = file.size();
-//    if(pHex)
-//    {
-//        delete pHex;
-//        pHex = NULL;
-//    }
-    //读取文件;
     pHex = new char[size];
-    file.read((char *)pHex, size);
-    m_pSimulateVar = (char *)pHex;//模拟变量数目(4 bytes)
+    file.read(pHex, size);//是否该判断读取的大小?????????????????
+
+    m_pSimulateVar = pHex;//模拟变量数目(占4 bytes)
     pTemp = m_pSimulateVar;
     pTemp = (char *)((int *)pTemp + 1);//模拟变量描述区域的大小(4 bytes)
     pTemp = (char *)(pTemp + *((int *)pTemp));//工程参数;
     m_pProjectParm = (LPProjectParm)pTemp;
-    m_pPanelParm = (LPPanelParm)(pTemp+sizeof(ProjectParm));
+    m_pPanelParm = (LPPanelParm)(pTemp+sizeof(ProjectParm));//面板参数;
+
     //页面数目;
     int *pNum = (int*)((char*)m_pPanelParm + sizeof(PanelParm));
     m_pageStruct.nPageNum = *pNum;
@@ -77,24 +115,17 @@ void ResManager::loadHex()
         pPageHead = (LPPageHead)((char *)pPageHead + pPageHead->nPageSize);
     }
 
-    //m_pageStruct.pSubPageVector = new (QVector<LPPageHead>)[*pNum];//建立子画面矩阵;
-	m_pageStruct.pSubPageVector.resize(*pNum);//建立子画面矩阵;
+    //建立子画面矩阵;
+    m_pageStruct.pSubPageVector.resize(*pNum);
     LPSubPageListHead pSubPageListHead = (LPSubPageListHead)pPageHead;
     for(int i = 0; i < *pNum; i++)
     {
-//        qDebug()<<"画面:"<<i;
-//        qDebug()<<"子画面数目:"<<pSubPageListHead->nSubPageCnt;
-//        qDebug()<<"子画面大小:"<<pSubPageListHead->nSubPageListSize;
         setupSubPageVector(pSubPageListHead, i);
         pSubPageListHead = (LPSubPageListHead)((char *)pSubPageListHead + pSubPageListHead->nSubPageListSize);
     }
 
-
+    //建立任务列表;
     pNum = (int *)pSubPageListHead;//任务个数;
-    qDebug()<<"..."<<pNum;
-    qDebug()<<"..."<<pHex;
-    qDebug()<<"task num:"<<*pNum;
-    //m_pTaskVector = new QVector<LPActDeal>[*pNum];
 	m_pTaskVector.resize(*pNum);
     if(*pNum > 0)
     {
@@ -105,38 +136,36 @@ void ResManager::loadHex()
             p =(int *)((char*)p+ *p);
         }
     }
-    //页面数据;
+
     file.close();
 
 }
 
-void ResManager::loadConfig()
+//!加载语言配置选项,如下选项;
+/*!
+ * 最大语言数目;\n
+ * 当前选中的语言;\n
+ */
+void ResManager::loadLanguageConfig()
 {
-    //读取配置选项;
     QSettings settings(OPTIONGFILE, QSettings::IniFormat);
     settings.setIniCodec(QTextCodec::codecForName("GB2312"));
     m_nMaxLanguage = settings.value("SYS/MaxLanguage").toInt();//最大支持的语言数目;
-    m_nLanguageSel = settings.value("SYS/LanguageSel").toInt();//当期那选中的语言;
-    m_nAdminPwd = settings.value("SYS/AdminPwd").toInt();//管理员密码;
-    m_nSeniorAdminPwd = settings.value("SYS/SeniorAdminPwd").toInt();//高级管理员密码;
+    m_nLanguageSel = settings.value("SYS/LanguageSel").toInt();//选中的语言;
 }
 
 
 
-
-//加载图片资源;
 void ResManager::loadImg()
 {
     QSettings settings(OPTIONGFILE, QSettings::IniFormat);
     QString strPath;
     QString strTemp;
-    //图片资源数目;
     int num = settings.value("IMG/num").toInt();
     for(int i = 0; i < num; i++)
     {
         strTemp = QString("IMG/%1").arg(i);
         strPath = settings.value(strTemp).toString();
-        qDebug()<<strPath;
         QPixmap *pPixmap = new QPixmap(strPath);
         m_imgVec.append(pPixmap);
     }
@@ -148,26 +177,18 @@ void ResManager::loadWarnText()
     settings.setIniCodec(QTextCodec::codecForName("GB2312"));
     QString string;
     QString strTemp;
-    //报警信息数目;
 	
 	int num = settings.value("WARN/num").toInt();
 	for(int i = 0; i < num; i++)
 	{
 		strTemp = QString("WARN/%1").arg(i);
 		string = settings.value(strTemp).toString();
-		qDebug()<<string;
+//		qDebug()<<string;
 		QString *pString = new QString(string);
 		m_warnVec.append(pString);
 	}
-	qDebug()<<"fucking load warn done";
 }
 
-//    QSettings settings("Option.ini", QSettings::IniFormat); // 当前目录的INI文件
-//    settings.beginGroup("DevOption");
-//    settings.setValue("1", QString("你好"));
-//    settings.setValue("2", QString("你好"));
-//    settings.setValue("3", QString("你好"));
-//    settings.endGroup();
 
 //加载字符串资源;
 void ResManager::loadString()
@@ -178,7 +199,7 @@ void ResManager::loadString()
      QString strTemp;
      QString strLanguage="STRING";//语言选择;
      strLanguage = strLanguage + QString::number(m_nLanguageSel);
-     //字符串资源数目;
+
      int num = settings.value(strLanguage+"/num").toInt();
      for(int i = 0; i < num; i++)
      {
@@ -188,15 +209,20 @@ void ResManager::loadString()
         QString *pString = new QString(string);
         m_strVec.append(pString);
      }
-    qDebug()<<"fucking load string done";
 }
 
+/**
+* @param nLanguage 指示使用哪种语言 0:中文 1:英文.
+* @param bInit 是否第一次启动该程序.
+* @see ResManager()
+* @return void
+*/
 void ResManager::changeLanguage(int nLanguage, bool bInit/* = false*/)
 {
 	if(bInit)
 		nLanguage = m_nLanguageSel;
     int nTemp = nLanguage%m_nMaxLanguage;
-	//int nTemp = 0;
+
     if((!bInit) && (m_nLanguageSel == nTemp))//
 	{
 		return;
@@ -213,50 +239,18 @@ void ResManager::changeLanguage(int nLanguage, bool bInit/* = false*/)
     settings.setIniCodec(QTextCodec::codecForName("GB2312"));
     settings.setValue("SYS/LanguageSel", m_nLanguageSel);
 
-	if(m_nLanguageSel==0)
+    if(m_nLanguageSel==0)//中文;
 	{
 		qApp->installTranslator(m_pTranslator);
 	}
-	else
+    else//英文;
 	{
 		qApp->removeTranslator(m_pTranslator);
 	}
 
 }
 
-void ResManager::changePwd(int who, int oldPwd, int newPwd)
-{
-    if(who==0)//管理员;
-    {
-        if(oldPwd != m_nAdminPwd)
-        {
-            QMessageBox::warning(0, tr("Warning"),tr("PWD ERROR"));
-            return;
-        }
-        m_nAdminPwd = newPwd;
-        //保存到配置文件;
-        QSettings settings(OPTIONGFILE, QSettings::IniFormat);
-        settings.setIniCodec(QTextCodec::codecForName("GB2312"));
-        settings.setValue("SYS/AdminPwd", m_nAdminPwd);
 
-        QMessageBox::information(0, tr("Tips"), tr("Change Pwd success"));
-    }
-    else//高级管理员;
-    {
-        if(oldPwd != m_nSeniorAdminPwd)
-        {
-            QMessageBox::warning(0, tr("Warning"),tr("PWD ERROR"));
-            return;
-        }
-        m_nSeniorAdminPwd = newPwd;
-        //保存到配置文件;
-        QSettings settings(OPTIONGFILE, QSettings::IniFormat);
-        settings.setIniCodec(QTextCodec::codecForName("GB2312"));
-        settings.setValue("SYS/SeniorAdminPwd", m_nSeniorAdminPwd);
-
-        QMessageBox::information(0, tr("Tips"), tr("Change Pwd success"));
-    }
-}
 
 void ResManager::releaseStrRes()
 {
@@ -339,28 +333,32 @@ void ResManager::setupSubPageVector(const LPSubPageListHead pSub, int nId)
 	QVector<LPPageHead> *pPVector = const_cast< QVector<LPPageHead> *>(&m_pageStruct.pSubPageVector.at(nId) );
     for(int i = 0; i < nMax; i++)
     {
-        //m_pageStruct.pSubPageVector[nId].append(pPageHead);
 		pPVector->append(pPageHead);
         pPageHead = (LPPageHead)((char *)pPageHead + pPageHead->nPageSize);
     }
 }
 
+//!建立任务列表
+/*!
+ *  |任务大小|(4)
+ *  |动作的个数|(4)
+ *  |动作0|
+ *  |动作1|
+ *  ...
+ *  |动作n|
+ */
 void ResManager::setupTaskVector(int *p, int nId)
 {
     int *pp = p;
-    pp = pp + 1;//子任务的个数;
+    pp = pp + 1;
     if(*pp == 0)
         return;
-    int nCnt = *pp;
-    qDebug()<<"action cnt:"<<nCnt;
-    pp = pp + 1;//指向第一条任务;
-    qDebug()<<"---"<<pp;
+    int nCnt = *pp;//动作的个数;
+    pp = pp + 1;//指向第一条动作;
     LPActDeal pAct = (LPActDeal)(pp);
 	QVector<LPActDeal> *pTVector = const_cast< QVector<LPActDeal> * >(&m_pTaskVector.at(nId) );
     for(int i = 0; i < nCnt; i++)
     {
-        //qDebug()<<"*pp="<<*pp;
-        //m_pTaskVector[nId].append(pAct);
 		pTVector->append(pAct);
         pAct = pAct + 1;
     }
@@ -369,6 +367,5 @@ void ResManager::setupTaskVector(int *p, int nId)
 void ResManager::loadStr(void)
 {
 	changeLanguage(0, true);
-	qDebug()<<"fuck1";
 }
 

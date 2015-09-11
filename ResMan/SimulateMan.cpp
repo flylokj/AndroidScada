@@ -5,7 +5,6 @@
 #include <QtNetwork>
 #include "Protocol.h"
 
-extern QTcpSocket *client;
 
 SimulateMan::SimulateMan(ArchiveManager *pArch, QObject *parent) :
     QObject(parent),
@@ -24,30 +23,30 @@ void SimulateMan::setupPrivate(char *p)
 {
     m_pData = (SimulateStruct *)p;
     quint16 nAddr = m_pData->nAddr;
-    qint16 addr;
-    m_coilCode.append((char)0x0);
+    qint16 nOffset;
+    qint16 nBase;
     if(m_pData->bWarning)//生成代表本软元件的字节码;
     {
         if(m_pData->nAddr < M_COIL_OFFSET)//D是字软元件,不应该在此出现;
         {
-             m_coilCode.append(0x96);//D coil
-             addr = nAddr;
-             addr /= 2;
+            nBase = 21000;
+            nOffset = nAddr;
+            nOffset /= 2;
         }
         else if(m_pData->nAddr >= M_COIL_OFFSET && m_pData->nAddr < X_COIL_OFFSET)//M字软元件
         {
-            m_coilCode.append(0x92);//M coil
-            addr = nAddr-M_COIL_OFFSET;
+            nBase = 2000;
+            nOffset = nAddr-M_COIL_OFFSET;
         }
         else if(m_pData->nAddr >= X_COIL_OFFSET && m_pData->nAddr < Y_COIL_OFFSET)//X位软元件
         {
-            m_coilCode.append(0x90);//X coil
-            addr = nAddr-X_COIL_OFFSET;
+            nBase = 0;
+            nOffset = nAddr-X_COIL_OFFSET;
         }
         else if(m_pData->nAddr >= Y_COIL_OFFSET && m_pData->nAddr < MOLDSIZE)//Y位软元件
         {
-            m_coilCode.append(0x91);//Y coil
-            addr = nAddr-Y_COIL_OFFSET;
+            nBase = 500;
+            nOffset = nAddr-Y_COIL_OFFSET;
         }
         else
         {
@@ -55,66 +54,10 @@ void SimulateMan::setupPrivate(char *p)
             return;
         }
         //address
-        m_coilCode.append((addr>>8)&0xff);
-        m_coilCode.append(addr&0xff);
-
-//        quint16 nAddr = m_pData->nAddr;
-//        switch (m_pData->nDataType) {
-//            //1字节;
-//            case 0:
-//            case 1:
-//            {
-//                // coil[2], addr[2]
-//                qint16 addr;
-//                m_coilName.append(0);
-//                if(m_pData->nAddr < M_COIL_OFFSET)//D是字软元件,不应该在此出现;
-//                {
-//                     m_coilName.clear();
-//                     break;
-//                }
-//                else if(m_pData->nAddr >= M_COIL_OFFSET && m_pData->nAddr < X_COIL_OFFSET)//M字软元件
-//                {
-//                    m_coilName.append(0x92);//M coil
-//                    addr-M_COIL_OFFSET;
-//                }
-//                else if(m_pData->nAddr >= X_COIL_OFFSET && m_pData->nAddr < Y_COIL_OFFSET)//X位软元件
-//                {
-//                    m_coilName.append(0x90);//X coil
-//                    addr-X_COIL_OFFSET;
-//                }
-//                else if(m_pData->nAddr >= Y_COIL_OFFSET && m_pData->nAddr < MOLDSIZE)//Y位软元件
-//                {
-//                    m_coilName.append(0x91);//Y coil
-//                    addr-Y_COIL_OFFSET;
-//                }
-//                else
-//                {
-//                    m_coilName.clear();
-//                    break;
-//                }
-//                //address
-//                m_coilName.append((nAddr>>8)&0xff);
-//                m_coilName.append(nAddr&0xff);
-//            }
-//            break;
-//            //2字节;
-//            case 2:
-//            case 3:
-//            {
-//                if(m_pData->nAddr < M_COIL_OFFSET)//D是字软元件
-//                {
-//                    //cmd[1], coil[1], addr[2], size[1], data[2]
-//                    qint16 addr = nAddr/2;
-//                    m_coilName.append(0);
-//                    m_coilName.append(0x96);//D coil
-//                    m_coilName.append((addr>>8)&0xff);
-//                    m_coilName.append(addr&0xff);
-//                }
-//            }
-//            break;
-//            default:
-//                break;
-//        }
+        m_nCoilCode = nOffset;
+        nBase += nOffset;
+        m_coilCode.append((nBase>>8)&0xff);
+        m_coilCode.append(nBase&0xff);
     }
 
 }

@@ -31,15 +31,17 @@ extern "C"{
 #define CMDLEN_PRO		18
 
 #define MONITOR_ADDR    8040
-#define MONITORID_ADDR  1024
+#define MONITORSIZE_ADDR  8100
 
 typedef uint16 (*pComWrite)( quint8* data, uint16 sz );
 typedef void (*pTimerOut)( void* pData );
 typedef void (*pSetTimer)( int nID, unsigned long time, void* pData, pTimerOut callback );
+typedef void (*pSendSuccess)();
 
 typedef struct tagProtocolConf{
 	pComWrite write;
 	pSetTimer setTimer;
+    pSendSuccess sendSuccess;
 	int nTimeOutCount;
 	unsigned long lTimerout;
 }ProtocolConf,*LPProtocolConf;
@@ -48,6 +50,7 @@ typedef struct tagProtocolConf{
 #define PROTOCOL_CONF_SETTIMERFUN	0x02
 #define PROTOCOL_CONF_TIMEOUTCOUNT	0x04
 #define PROTOCOL_CONF_TIMEOUT		0x08
+#define PROTOCOL_CONF_SENDSUCCESSFUN		0x10
 
 int API_Protocol( mbyte* pData, uint16 sz );
 void API_InitProtocol( void );

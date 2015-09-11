@@ -9,7 +9,7 @@ WarningPage::WarningPage(QWidget *parent) :
     ui(new Ui::WarningPage)
 {
     ui->setupUi(this);
-    double dXfactor = (double)g_pResManModule->m_pProjectParm->m_nWidth / 800;//因为在UI文件中布局时候是假设面板大小为800*600;
+    const double dXfactor = g_pResManModule->getdXfactor();
     ui->tableWidget->setColumnWidth(0, 100*dXfactor);
     ui->tableWidget->setColumnWidth(1, 300*dXfactor);
     ui->tableWidget->setColumnWidth(2, 175*dXfactor);
@@ -22,14 +22,11 @@ WarningPage::WarningPage(QWidget *parent) :
     font.setBold(true);
     ui->tableWidget->horizontalHeader()->setFont(font);
     ui->tableWidget->setCornerButtonEnabled(false);
-//    ui->tableWidget->setStyleSheet("QTableCornerButton::section{background:skyblue;}");
-//    ui->tableWidget->horizontalHeader()->setStyleSheet("QHeaderView::section{background:skyblue;}");
-//    ui->tableWidget->verticalHeader()->setStyleSheet("QHeaderView::section{background:skyblue;}");
     ui->tableWidget->verticalScrollBar()->setStyleSheet("QScrollBar:vertical{background:transparent;width:30px; border: 2px solid transparent;}");
 
 
     connect(g_pArchiveModule, SIGNAL(updateWarn(QString, bool)), this, SLOT(onUpdateWarningTable(QString, bool)) );
-    g_pArchiveModule->triggerRecord();
+    g_pArchiveModule->triggerDisplayRecord();
     setAttribute(Qt::WA_TranslucentBackground);
     QObjectList childList = children();
     foreach (QObject *obj, childList) {

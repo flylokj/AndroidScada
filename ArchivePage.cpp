@@ -25,7 +25,7 @@ ArchivePage::ArchivePage(QWidget *parent) :
     m_currentCheck(NULL)
 {
     ui->setupUi(this);
-    double dXfactor = (double)g_pResManModule->m_pProjectParm->m_nWidth / 800;//因为在UI文件中布局时候是假设面板大小为800*600;
+    const double dXfactor = g_pResManModule->getdXfactor();
     ui->tableWidget->setColumnWidth(0,500*dXfactor);
     ui->tableWidget->setColumnWidth(1,165*dXfactor);
     ui->tableWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);

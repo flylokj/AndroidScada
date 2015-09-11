@@ -8,9 +8,6 @@
 #include <QtNetwork/QTcpSocket>
 #include <QtNetwork/QHostAddress>
 
-//QString ArchiveManager::m_moldName = "";
-
-extern QTcpSocket *client;
 
 ArchiveManager::ArchiveManager(QObject *parent):
     QObject(parent),
@@ -20,21 +17,21 @@ ArchiveManager::ArchiveManager(QObject *parent):
     m_nMaxWarnCnt(0),
     m_pParameter(0)
 {
+    g_pArchiveModule = this;
     loadWarnRecord();
-    m_pCommunication = new Communication(this);//通讯模块;
+    setupSimulateManager(g_pResManModule->m_pSimulateVar);
+    setupAddrManger(g_pResManModule->m_pProjectParm->m_nAddrOff, g_pResManModule->m_pProjectParm->m_nAddrRange);
+    m_pCommunication = new Communication(this);
 }
 
 ArchiveManager::~ArchiveManager()
 {
 	qDebug()<<"~ArchiveManager()";
-    //保存模号参数;
-    saveMold();
-    //保存面板参数;
-    savePanel();
-    //保存报警记录;
-    saveWarnRecord();
-    //释放报警记录占用的字符串空间;
-    releaseWarnRecord();
+
+    saveMold();                                     //保存模号参数;
+    savePanel();                                    //保存面板参数;
+    saveWarnRecord();                               //保存报警记录;
+    releaseWarnRecord();                            //释放报警记录占用的字符串空间;
 
     if(m_pParameter)
         delete m_pParameter;
@@ -48,27 +45,39 @@ ArchiveManager::~ArchiveManager()
     }
     simulateMap.clear();
 
-    //清空教导记录数据;
-    clearTutorVec();
+    clearTutorVec();//清空教导记录数据;
 }
 
+
+
+//!<建立模拟变量管理列表.
+/*!
+ * @param p 模拟变量区域，在hex文件中,模拟变量区域分布如下:\n
+ * |变量数目|(4)\n
+ * |模拟变量区域大小|(4)\n
+ * |模拟变量0|(SimulateStruct结构大小)
+ * |模拟变量1|(SimulateStruct结构大小)
+ * ...
+ * |模拟变量n|(SimulateStruct结构大小)
+ */
 void ArchiveManager::setupSimulateManager(char *p)
 {
     char *pTemp =(char *)p;//模拟变量数目(4 bytes)
     int* pMax = (int *)pTemp;
     int nMax = *pMax;
     pTemp = pTemp + sizeof(int)*2;//跳过模拟变量数目和模拟变量区域大小共2字节;
-    for(int i =  0; i < nMax; i++)
+    for(int i = 0; i < nMax; i++)
     {
         SimulateMan *pSimulate = new SimulateMan(this);
         pSimulate->setupPrivate(pTemp);
         simulateMap.insert(i, pSimulate);
-//        if(pSimulate->m_pData->bWarning)//监控;
-//            m_pCommunication->addIdToReqBuf(i);
         pTemp = pTemp + sizeof(SimulateStruct);
     }
 
 }
+
+
+
 
 void ArchiveManager::setupAddrManger(int nAddrOff, int nAddrRange)
 {
@@ -87,6 +96,8 @@ void ArchiveManager::setupAddrManger(int nAddrOff, int nAddrRange)
     QSettings settings(OPTIONGFILE, QSettings::IniFormat);
     settings.setIniCodec(QTextCodec::codecForName("GB2312"));
     QString fileName = settings.value("SYS/mold").toString();
+    m_nAdminPwd = settings.value("SYS/AdminPwd").toInt();//管理员密码;
+    m_nSeniorAdminPwd = settings.value("SYS/SeniorAdminPwd").toInt();//高级管理员密码;
     loadMold(fileName.split(".").at(0));
 
     //读取面板参数;
@@ -149,11 +160,17 @@ int ArchiveManager::readDWord(int addr)
     return temp;
 }
 
-//改变模号;
+
+
+
+//!保存模号.
+/*!
+ * 1、面板普通参数的保存.\n
+ * 2、教导参数保存.\n
+ */
 void ArchiveManager::saveMold()
 {
     QString str(m_moldName);
-    //模号参数保存;
     str.append(".bin");
     str.prepend(MOLDDIR);
     QFile file(str);
@@ -228,6 +245,9 @@ void ArchiveManager::saveMold()
     qDebug()<<"tutor record save success";
 }
 
+
+
+
 void ArchiveManager::changeMold(const QString strFile, bool bFromBackup)
 {
     if(strFile.compare(m_moldName) == 0)
@@ -246,6 +266,7 @@ void ArchiveManager::changeMold(const QString strFile, bool bFromBackup)
     qDebug()<<"change to mold "<<m_moldName;
 
 }
+
 
 
 //加载模号;
@@ -348,8 +369,11 @@ void ArchiveManager::loadMold(const QString strFile)
     }
 
     fileTutor.close();
+    updateMold();
     qDebug()<<"tutor record load success";
 }
+
+
 
 void ArchiveManager::loadPanel(const QString strFile)
 {
@@ -384,6 +408,8 @@ void ArchiveManager::loadPanel(const QString strFile)
     file.close();
 }
 
+
+
 void ArchiveManager::savePanel()
 {
     QString str(m_panelFile);
@@ -399,6 +425,8 @@ void ArchiveManager::savePanel()
 
     qDebug()<<"saveing "<<str;
 }
+
+
 
 void ArchiveManager::test()
 {
@@ -421,11 +449,15 @@ void ArchiveManager::test()
     qDebug()<<QString("readDWord addr:%1: data:%2").arg(addr).arg(QString::number(nTemp));
 }
 
+
+
 void ArchiveManager::updateSysPage(int nPage)
 {
     writeByte(SYS_ADDR_PAGE, nPage);
     emit(updateSys(PAGECHANGE, nPage, QString("")));
 }
+
+
 
 int ArchiveManager::getSysPage()
 {
@@ -433,12 +465,16 @@ int ArchiveManager::getSysPage()
     return nPage;
 }
 
+
+
 void ArchiveManager::updateMold()
 {
     emit(updateSys(MOLDNAME, 0, QString( m_moldName )));
 }
 
-void ArchiveManager::triggerRecord()
+
+
+void ArchiveManager::triggerDisplayRecord()
 {
     int cnt = m_WarningMap.count();
     if(cnt < m_nMaxWarnCnt)
@@ -460,13 +496,15 @@ void ArchiveManager::triggerRecord()
 
 }
 
+
+
 void ArchiveManager::loadWarnRecord()
 {
     QSettings settings(".\\res\\warning.ini", QSettings::IniFormat);
     settings.setIniCodec(QTextCodec::codecForName("GB2312"));
     QString string;
     QString strTemp;
-    //报警记录数目;
+
     int num = settings.value("RECORD/num").toInt();
     m_nMaxWarnCnt = settings.value("RECORD/max").toInt();
     m_nNewestWarnId = settings.value("RECORD/cur").toInt();
@@ -479,6 +517,8 @@ void ArchiveManager::loadWarnRecord()
        m_WarningMap.insert(i, pString);
     }
 }
+
+
 
 void ArchiveManager::saveWarnRecord()
 {
@@ -497,9 +537,17 @@ void ArchiveManager::saveWarnRecord()
     }
 }
 
+
+//!插入报警信息
+/*!
+ * 1、根据参数id获取警告字符串资源;\n
+ * 2、再添加日期信息串成一字符串;\n
+ * 3、将该字符串插入到m_WarningMap中;\n
+ */
 void ArchiveManager::insertWarning(const int id)
 {
-    if(g_pResManModule->getWarningText(id).isEmpty())
+    QString warningText = g_pResManModule->getWarningText(id);
+    if(warningText.isEmpty())
         return;
     //获取当前时间，记录报警时间;
     QDate date = QDate::currentDate();
@@ -508,10 +556,11 @@ void ArchiveManager::insertWarning(const int id)
     text.append(" ");
     text.append( time.toString("hh:mm") );
 
+    //id_warning text_date time_not slove
     QString *strWarningText = new QString();
     strWarningText->append(QString::number(id));
     strWarningText->append("_");
-    strWarningText->append(g_pResManModule->getWarningText(id));
+    strWarningText->append(warningText);
     strWarningText->append("_");
     strWarningText->append(text);
     strWarningText->append("_");
@@ -522,7 +571,7 @@ void ArchiveManager::insertWarning(const int id)
         m_WarningMap.insert(cnt, strWarningText);
         m_nNewestWarnId = cnt;
     }
-    else
+    else//循环插入到头;
     {
         m_nNewestWarnId = ++m_nNewestWarnId%m_nMaxWarnCnt;
         QString *pStr = m_WarningMap.value(m_nNewestWarnId);
@@ -534,6 +583,8 @@ void ArchiveManager::insertWarning(const int id)
     emit(updateWarn(*strWarningText, false));
     qDebug()<<*strWarningText;
 }
+
+
 
 void ArchiveManager::removeWarning(const int id)
 {
@@ -560,6 +611,8 @@ void ArchiveManager::removeWarning(const int id)
     }
 }
 
+
+
 void ArchiveManager::releaseWarnRecord()
 {
     for(QMap<int, QString *>::const_iterator it=m_WarningMap.begin(); it!=m_WarningMap.end(); it++ )
@@ -570,24 +623,25 @@ void ArchiveManager::releaseWarnRecord()
     m_WarningMap.clear();
 }
 
+
+
 const QString &ArchiveManager::getMoldName()
 {
     return m_moldName;
 }
+
+
 
 const QString &ArchiveManager::getPanelName()
 {
     return m_panelFile;
 }
 
+
+
 bool ArchiveManager::checkAddr(int addr)
 {
-//    if(addr < m_nAddrOff || (addr > (m_nAddrOff + m_nAddrRange)) )
-//    {
-//        QMessageBox::warning(0,QString("警告"), QString("%1地址超出范围").arg(addr));
-//        return false;
-//    }
-    //if(addr < 0 || (addr > (m_nAddrRange+m_nAddrOff)) )
+
 	if(addr < 0 || (addr > PARMSIZE) )
     {
         QMessageBox::warning(0,QString("警告"), QString("%1地址超出范围").arg(addr));
@@ -595,6 +649,8 @@ bool ArchiveManager::checkAddr(int addr)
     }
     return true;
 }
+
+
 
 void ArchiveManager::clearTutorVec()
 {
@@ -606,6 +662,8 @@ void ArchiveManager::clearTutorVec()
     }
     m_tutorVec.clear();
 }
+
+
 
 #include "UI/KJLBaseCtrl.h"
 #include <QScriptEngine>
@@ -650,5 +708,43 @@ void ArchiveManager::saveTime()
 #endif
 }
 
+/**
+ *@param who        0:管理员 1:高级管理员
+ *@param oldPwd     旧密码
+ *@param newPwd     新密码
+ *@return void
+ */
+void ArchiveManager::changePwd(int who, int oldPwd, int newPwd)
+{
+    if(who==0)//管理员;
+    {
+        if(oldPwd != m_nAdminPwd)
+        {
+            QMessageBox::warning(0, tr("Warning"),tr("PWD ERROR"));
+            return;
+        }
+        m_nAdminPwd = newPwd;
+        //保存到配置文件;
+        QSettings settings(OPTIONGFILE, QSettings::IniFormat);
+        settings.setIniCodec(QTextCodec::codecForName("GB2312"));
+        settings.setValue("SYS/AdminPwd", m_nAdminPwd);
 
+        QMessageBox::information(0, tr("Tips"), tr("Change Pwd success"));
+    }
+    else//高级管理员;
+    {
+        if(oldPwd != m_nSeniorAdminPwd)
+        {
+            QMessageBox::warning(0, tr("Warning"),tr("PWD ERROR"));
+            return;
+        }
+        m_nSeniorAdminPwd = newPwd;
+        //保存到配置文件;
+        QSettings settings(OPTIONGFILE, QSettings::IniFormat);
+        settings.setIniCodec(QTextCodec::codecForName("GB2312"));
+        settings.setValue("SYS/SeniorAdminPwd", m_nSeniorAdminPwd);
+
+        QMessageBox::information(0, tr("Tips"), tr("Change Pwd success"));
+    }
+}
 

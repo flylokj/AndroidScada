@@ -5,7 +5,7 @@
 
 
 extern ResManager *g_pResManModule;//资源管理模块;
-
+#include <MainWindow.h>
 KJLButton::KJLButton(QWidget *parent/*=0*/, char *data/*=0*/):
     QPushButton(parent)
     ,bFocus(false)
@@ -39,6 +39,17 @@ KJLButton::KJLButton(QWidget *parent/*=0*/, char *data/*=0*/):
         }
         else
             show();
+
+        if(m_pPriData->m_bHoverAct)
+        {
+            if(parent)
+            {
+                MainWindow *pParent = qobject_cast<MainWindow *>(parent);
+                if(pParent)
+                    pParent->m_animationButton.append(this);
+
+            }
+        }
     }
 
 	setAttribute( Qt::WA_DeleteOnClose, true);
@@ -172,6 +183,14 @@ void KJLButton::mousePressEvent(QMouseEvent *event)
 
     bPress = true;
     qDebug()<<"press!!!!!!done";
+
+    if(m_pPriData->m_bHoverAct && parentWidget())
+    {
+        MainWindow *pParent = qobject_cast<MainWindow *>(parentWidget());
+        if(pParent)
+            pParent->startSmoothXSelection(geometry());
+
+    }
 }
 
 void KJLButton::mouseReleaseEvent(QMouseEvent *event)

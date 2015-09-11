@@ -13,6 +13,9 @@ public:
 
     void setData(void *data, bool byHand = false);
 
+protected:
+    virtual void closeEvent(QCloseEvent * event);
+
 private:
     SimulateMan *m_pSimulate;//绑定的模拟变量;
     LPBaseCtrl m_pData;

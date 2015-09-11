@@ -18,7 +18,6 @@
 #define Y_COIL_OFFSET       8192//Y位软元件地址偏移;
 
 
-
 #define WINQT
 #define WINLINUX
 //#define MYANDROID

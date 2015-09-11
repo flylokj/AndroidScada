@@ -13,13 +13,13 @@
 
 
 
-ResManager *g_pResManModule;//资源管理模块;
-ArchiveManager *g_pArchiveModule;//档案管理模块;
-QScriptEngine *pGlobalScriptEngine;//全局脚本引擎;
-QMainWindow *gMainWindow = 0;//全局主窗口句柄;
+ResManager *g_pResManModule;            //资源管理模块;
+ArchiveManager *g_pArchiveModule;       //档案管理模块;
+QScriptEngine *pGlobalScriptEngine;     //全局脚本引擎;
+QMainWindow *gMainWindow = 0;           //全局主窗口句柄;
 
-void setupGlobalScriptEngine();//建立全局脚本管理,添加各种自定义的脚本函数;
-void globalScriptEngineTest();//测试脚本模块是否工作正常;
+void setupGlobalScriptEngine();         //建立全局脚本管理,添加各种自定义的脚本函数;
+void globalScriptEngineTest();          //测试脚本模块是否工作正常;
 
 
 
@@ -28,40 +28,23 @@ void globalScriptEngineTest();//测试脚本模块是否工作正常;
 int main(int argc, char *argv[])
 {
 	QApplication a(argc, argv);
+    QTextCodec::setCodecForLocale(QTextCodec::codecForName("GB2312"));//设置本地编码;
+    ResManager resManModule;             //资源管理模块{提供图片、字符串、警告信息、语言、密码};
+    ArchiveManager archiveModule;        //档案管理模块;{建立变量管理、建立地址管理}
+    setupGlobalScriptEngine();           //建立脚本引擎模块{插入了各种功能性脚本函数};
+    MainWindow w;//建立窗口管理;
 
-	QTextCodec::setCodecForLocale(QTextCodec::codecForName("GB2312"));
-
+    Q_UNUSED(resManModule);
+    Q_UNUSED(archiveModule);
     //设置字体;
-#ifdef WINLINUX	
-	QFont font;
-	font.setPointSize(16);
-	font.setFamily(("wenquanyi"));
-	a.setFont(font);
+#ifdef WINLINUX
+    QFont font;
+    font.setPointSize(16);
+    font.setFamily(("wenquanyi"));
+    a.setFont(font);
 #endif
-
-    //[0]资源管理模块;
-    ResManager resManModule;
-    g_pResManModule = &resManModule;
-    resManModule.loadHex();//加载HEX;
-    resManModule.loadConfig();//加载系统配置项;
-    resManModule.loadImg();//加载图片;
-    resManModule.loadStr();//加载字符串;
-    resManModule.loadWarnText();//加载报警信息;
-
-    //[1]建立脚本引擎模块{插入了各种功能性脚本函数};
-    setupGlobalScriptEngine();
-
-    //[2]档案管理模块;{建立变量管理、建立地址管理}
-    ArchiveManager archiveModule;
-    g_pArchiveModule = &archiveModule;
-    archiveModule.setupSimulateManager(resManModule.m_pSimulateVar);
-    archiveModule.setupAddrManger(resManModule.m_pProjectParm->m_nAddrOff, resManModule.m_pProjectParm->m_nAddrRange);
-
-    //[3]建立窗口管理;
-    MainWindow w;
-    gMainWindow = &w;
 #ifdef MYANDROID
-    w.setWindowFlags(Qt::FramelessWindowHint);
+    w.setWindowFlags(Qt::FramelessWindowHint);//去掉窗口边框;
     QFont f = a.font();
     f.setPointSize(20);
     a.setFont(f);
@@ -69,8 +52,8 @@ int main(int argc, char *argv[])
 #else
     w.show();
 #endif
-	a.exec();
 
+	a.exec();
 	delete pGlobalScriptEngine;
 }
 
@@ -139,7 +122,7 @@ QScriptValue changePwd(QScriptContext *context, QScriptEngine *engine)
 	int who = context->argument(0).toInt32();
 	int oldPwd = context->argument(1).toInt32();
 	int newPwd = context->argument(2).toInt32();
-    g_pResManModule->changePwd(who, oldPwd, newPwd);
+    g_pArchiveModule->changePwd(who, oldPwd, newPwd);
 	return engine->nullValue();
 }
 

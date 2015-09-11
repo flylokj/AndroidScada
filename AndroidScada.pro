@@ -106,4 +106,6 @@ DISTFILES += \
 
 ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android
 
+QMAKE_CXXFLAGS += -Wno-unused-parameter
+
 

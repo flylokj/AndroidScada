@@ -44,6 +44,7 @@ public:
 
 
     QByteArray m_coilCode;
+    int m_nCoilCode;
     SimulateStruct *m_pData;//Ë½ÓÐÊý¾Ý;
 
 signals:

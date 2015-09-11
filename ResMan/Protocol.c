@@ -33,6 +33,7 @@ int Asiic2Hex( mbyte* pstr,uint16 sz,uint32* phex )
 
 __inline void SendNAK()
 {
+    return;
 	uint16 nak = NAK;
 	if( g_protocol.conf.write )
 		g_protocol.conf.write( &nak, 1 );
@@ -42,6 +43,7 @@ extern int nReqSuccess;
 
 __inline void SendACK()
 {
+    return;
 	uint16 enq = ACK;
 	if( g_protocol.conf.write )
 		g_protocol.conf.write( &enq, 1 );
@@ -259,7 +261,7 @@ void ProcessData()
 
 int API_Protocol( mbyte* pData, uint16 sz )
 {
-    //static bool stxFlag = false;
+    static int stxFlag = 0;
 	while( sz-- )
 	{
 		if( g_protocol.revIndex >= MAX_PROTOCL_BUF_SZ )
@@ -288,7 +290,7 @@ int API_Protocol( mbyte* pData, uint16 sz )
 					g_protocol.bESCGet = 0;
 				}else
 				{
-                    //stxFlag = true;
+                    stxFlag = 1;
 					g_protocol.revIndex = 0;
 				}
 					
@@ -308,16 +310,25 @@ int API_Protocol( mbyte* pData, uint16 sz )
 					g_protocol.bESCGet = 0;
 				}else
 				{
-                    //if(stxFlag)
+                    if(stxFlag)
 					{
-                        //stxFlag = false;
+                        stxFlag = 0;
 						ProcessData();
 					}
-                    //else
-                        //g_protocol.revIndex = 0;
+                    else
+                        g_protocol.revIndex = 0;
 					
 				}
 				break;
+            case ACK:
+                if(stxFlag==0)
+                {
+                    if(g_protocol.conf.sendSuccess)
+                        g_protocol.conf.sendSuccess();//»Øµ÷;
+                }
+                else
+                    g_protocol.revBuf[ g_protocol.revIndex++] = *pData;
+                break;
 			default:
 				g_protocol.revBuf[ g_protocol.revIndex++] = *pData;
 				break;
@@ -343,4 +354,6 @@ void SetProtocolConf( LPProtocolConf conf, unsigned int uFlag )
 		g_protocol.conf.nTimeOutCount = conf->nTimeOutCount;
 	if( PROTOCOL_CONF_TIMEOUT & uFlag )
 		g_protocol.conf.lTimerout = conf->lTimerout;
+    if( PROTOCOL_CONF_SENDSUCCESSFUN & uFlag )
+        g_protocol.conf.sendSuccess = conf->sendSuccess;
 }

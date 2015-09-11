@@ -13,7 +13,7 @@
 #include "WarningPage.h"
 #include "TutorPage.h"
 
-
+#include <QGraphicsView>
 
 #include <QDebug>
 
@@ -29,7 +29,13 @@ QMainWindow(parent),
 	m_nYfocus(0),
 	m_nWidgetFlag(0)
 {
-#if 1
+    gMainWindow = this;
+
+    //焦点特效;
+    QPushButton *btnAnimation =  new QPushButton(this);
+    btnAnimation->setGeometry(550,650,100,100);
+    btnAnimation->setStyleSheet("background-color: rgba(85, 170, 255, 35);");
+    btnAnimation->show();
 	//0:设置窗口大小;
 	//1:获取当前的页面指针;
 	//2:获取当前的控件焦点列表;
@@ -133,16 +139,36 @@ QMainWindow(parent),
 	connect(pBase, SIGNAL(subWinChangePage(int,int)), this, SLOT(onSubWinChangePage(int,int)) );
     connect(g_pResManModule, SIGNAL(updateDisp()), this, SLOT(onUpdateDisp()) );
 
-    g_pArchiveModule->updateMold();
-#endif
+
+    //平滑选择效果;
+    smoothXSelection = new QPropertyAnimation(btnAnimation, "geometry");
+    if(m_animationButton.size()>0)
+        startSmoothXSelection(m_animationButton.at(0)->geometry());
+
+
+    //翻转效果;
+
+
 }
 
 MainWindow::~MainWindow()
 {
-	qDebug()<<"~MainWindow()";
+    qDebug()<<"~MainWindow()";
 }
 
-//重绘;
+void MainWindow::startSmoothXSelection(const QRect &end)
+{
+    smoothXSelection->setEndValue(end.adjusted(-2,-2,2,2));
+    smoothXSelection->start();
+}
+
+//!背景重绘
+/*!
+ * 根据背景模式
+ * 0: 纯色背景
+ * 1: 渐变背景
+ * 2: 图片背景
+ */
 void MainWindow::paintEvent(QPaintEvent *event)
 {
     QPainter painter(this);
@@ -239,7 +265,6 @@ void MainWindow::synchroNizeYfocus()
 void MainWindow::onChangePage(int nPage)
 {
 	//[0]清空当前页面;
-	//qDebug()<<"test flag 1";
 	m_subWinVec.clear();//子窗口列表清除;
 	for(QVector<QWidget *>::const_iterator it = m_pageCtrlVec.begin(); it != m_pageCtrlVec.end(); it++)
 	{
@@ -247,21 +272,18 @@ void MainWindow::onChangePage(int nPage)
 			(*it)->close();
 		else
 		{
-
 			(*it)->close();//delete (*it);
-
 		}
 
 		m_nWidgetFlag = 0;
 	}
 	m_pageCtrlVec.clear();
-	//qDebug()<<"test flag 2";
 
 	/****************系统页面**********************/
 	if(nPage>100)
 	{
-        double dXfactor = (double)g_pResManModule->m_pProjectParm->m_nWidth / 800;//因为在UI文件中布局时候是假设面板大小为800*600;
-        double dYfactor = (double)g_pResManModule->m_pProjectParm->m_nHeight / 600;//因为在UI文件中布局时候是假设面板大小为800*600;
+        const double dXfactor = g_pResManModule->getdXfactor();
+        const double dYfactor = g_pResManModule->getdYfactor();
 		int nYPos = POSY*dYfactor;
 		qDebug()<<"sys page:"<<nPage;
         g_pArchiveModule->updateSysPage(nPage);
@@ -392,6 +414,11 @@ void MainWindow::onChangePage(int nPage)
 
     g_pArchiveModule->m_pCommunication->printMonitor();
     g_pArchiveModule->m_pCommunication->updateMonitorToHost();
+
+
+
+    //特效旋转;
+
 }
 
 void MainWindow::onSubWinChangePage(int nSunWin, int nPage)
@@ -408,7 +435,7 @@ void MainWindow::onSubWinChangePage(int nSunWin, int nPage)
 
 void MainWindow::onUpdateDisp()
 {
-    int nPage = g_pArchiveModule->readByte(SYS_ADDR_PAGE);
+    int nPage = g_pArchiveModule->getSysPage();
 	onChangePage(nPage);
 	update();
 }
